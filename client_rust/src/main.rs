@@ -22,7 +22,7 @@ fn main() -> io::Result<()> {
 
     let mut stream = TcpStream::connect(
         server_info.ip_address.clone() + ":" + &server_info.port_num.to_string(),
-    )?; // Adjust IP and port as needed
+    )?;
     println!(
         "Connected to the server on port {} from IP {}",
         server_info.port_num,

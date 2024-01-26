@@ -42,7 +42,7 @@ fn main() -> Result<(), Error> {
 
     let listener = TcpListener::bind(
         server_info.ip_address.clone() + ":" + &server_info.port_num.to_string(),
-    )?; // Bind to localhost
+    )?;
     println!(
         "Server listening on port {} from IP {}",
         server_info.port_num,
