@@ -23,6 +23,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error> {
             // Process Connect 4 game data here
             // For example, deserialize buffer into game state, update it, and serialize back
             stream.write(&buffer[..size])?; // Echo everything received
+            println!("Received: {:?}", String::from_utf8(buffer[..size].to_vec()));
             true
         }
         Err(_) => {
