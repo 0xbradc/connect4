@@ -9,98 +9,49 @@
 """
 
 import socket
+import threading
 
-FAMILY = socket.AF_INET
-TYPE = None
-IP_ADDRESS = ""
-PORT = 0
-NETWORK_INTERFACE = "eth0"
-RESPONSE = b"Copy that!"
-MAX_RECEIVING_SIZE = 2048
-MY_SERVER_SOCKET = None
+class SocketInformation:
+    def __init__(self, ip_address, port_num):
+        self.ip_address = ip_address
+        self.port_num = port_num
 
+def handle_client(connection, address):
+    print(f"New connection: {address}")
 
-def ask_server_type():
-    global FAMILY, TYPE, IP_ADDRESS, PORT, MAX_RECEIVING_SIZE
-    user_input = input(
-        "Enter one of the following options... \n\t[0] TCP IPv4 \n\t[1] UDP \n\t[2] Raw Socket\n"
-    )
-
-    if user_input == "0":
-        FAMILY = socket.AF_INET
-        TYPE = socket.SOCK_STREAM
-        PORT = 8081
-
-    elif user_input == "1":
-        FAMILY = socket.AF_INET
-        TYPE = socket.SOCK_DGRAM
-        PORT = 10000
-
-    elif user_input == "2":
-        FAMILY = socket.AF_INET
-        TYPE = socket.SOCK_RAW
-        PORT = 8081
-        MAX_RECEIVING_SIZE = 2**16 # Ethernet frame payload limit (2^16 == 65536)
-
-    else:
-        print("Invalid choice. Proceeding with default [0]...")
-        FAMILY = socket.AF_INET
-        TYPE = socket.SOCK_STREAM
-        PORT = 8081
-    
-    print("Server ready!")
-    
-
-
-def run_server():
-    global MY_SERVER_SOCKET
-    if TYPE == socket.SOCK_STREAM:
-        MY_SERVER_SOCKET = socket.socket(family=FAMILY, type=TYPE)  # Creates the socket
-        MY_SERVER_SOCKET.bind((IP_ADDRESS, PORT))
-        MY_SERVER_SOCKET.listen(
-            1
-        )  # Listen for incoming connections (parameter is the maximum number of queued connections)
-        client_socket, client_addr = MY_SERVER_SOCKET.accept()
-        while 1:
-            data = client_socket.recvfrom(MAX_RECEIVING_SIZE)
-            if not data:
+    try:
+        while True:
+            buffer = connection.recv(512)  # Buffer for incoming data
+            if not buffer:
                 break
-            print(f'Received message: "{data[0].decode()}"')
-            client_socket.send(RESPONSE)  # Optional response message
 
-    elif TYPE == socket.SOCK_DGRAM:
-        MY_SERVER_SOCKET = socket.socket(family=FAMILY, type=TYPE)  # Creates the socket
-        MY_SERVER_SOCKET.bind(("", PORT))  # Binds the server to a specific port
-        while 1:
-            data, addr = MY_SERVER_SOCKET.recvfrom(
-                MAX_RECEIVING_SIZE
-            )  # Waits for a message
-            if not data:
-                break
-            print(f'Received message: "{data.decode()}"')
-            MY_SERVER_SOCKET.sendto(RESPONSE, addr)  # Optional response message
+            # Process Connect 4 game data here (if needed)
+            # For now, we'll just echo everything received
+            connection.sendall(buffer)
+            print(f"Received: {buffer.decode('utf-8')}")
 
-    elif TYPE == socket.SOCK_RAW:
-        MY_SERVER_SOCKET = socket.socket(family=FAMILY, type=TYPE, proto=socket.IPPROTO_RAW)  # Creates the socket
-        MY_SERVER_SOCKET.bind((NETWORK_INTERFACE, PORT))
-        while 1:
-            # Receive data (this is a blocking call)
-            data = MY_SERVER_SOCKET.recv(MAX_RECEIVING_SIZE)
-            print(f'Received message: "{data.hex()}"')
+    except Exception as e:
+        print(f"An error occurred with: {address}, {e}")
 
-    else:
-        print("Not yet implemented")
-        pass
+    finally:
+        connection.close()
 
+def main():
+    server_info = SocketInformation("127.0.0.1", 4444)
 
-def close_server():
-    global MY_SERVER_SOCKET
-    MY_SERVER_SOCKET.close()
+    # Create a TCP/IP socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind((server_info.ip_address, server_info.port_num))
+        server_socket.listen()
 
+        print(f"Server listening on port {server_info.port_num} from IP {server_info.ip_address}")
+
+        # Accept connections and process them, spawning a new thread for each one
+        while True:
+            client_conn, client_addr = server_socket.accept()
+            threading.Thread(target=handle_client, args=(client_conn, client_addr)).start()
 
 if __name__ == "__main__":
-    ask_server_type()
-    run_server()
-    close_server()
+    main()
 
 """end of file"""

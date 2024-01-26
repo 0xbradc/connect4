@@ -1,81 +1,83 @@
 /** @file main.c
- * 
+ *
  * @brief Client in C
  *
- * @par   
+ * @par
  * COPYRIGHT NOTICE: MIT License
  * See: https://en.wikibooks.org/wiki/C_Programming/Networking_in_UNIX
- */ 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-#define MAXRCVLEN 500
-#define PORTNUM 2300
+struct SocketInformation
+{
+   char *ip_address;
+   unsigned int port_num;
+};
 
-/*!
- * @brief Set up main client
- *
- * @param[in] argc  Number of args
- * @param[in] argv  Array of args
- *
- * @return Success/Fail code
- */
 int main()
 {
-   char buffer[MAXRCVLEN + 1]; // +1 so we can add null terminator
-   int len;
-   int server_socket;
-   struct sockaddr_in dest;
+   struct SocketInformation server_info;
+   server_info.ip_address = "127.0.0.1";
+   server_info.port_num = 4444;
 
-   server_socket = socket(AF_INET, SOCK_STREAM, 0);
+   int sock;
+   struct sockaddr_in server_addr;
 
-   memset(&dest, 0x0, sizeof(dest)); // Zero the struct
-   dest.sin_family = AF_INET;
-   dest.sin_addr.s_addr = htonl(INADDR_ANY); // Set destination IP address
-   dest.sin_port = htons(PORTNUM);           // Set destination port number
+   // Create socket
+   sock = socket(AF_INET, SOCK_STREAM, 0);
+   if (-1 == sock)
+   {
+      perror("Error creating socket");
+      return 1;
+   }
 
-   connect(server_socket, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
-   len = recv(server_socket, buffer, MAXRCVLEN, 0);
-   buffer[len] = '\0'; // We must null terminate the received data ourselves
-   printf("Received %s (%d bytes).\n", buffer, len);
+   // Set server address
+   memset(&server_addr, 0, sizeof(server_addr));
+   server_addr.sin_family = AF_INET;
+   server_addr.sin_port = htons(server_info.port_num);
+   server_addr.sin_addr.s_addr = inet_addr(server_info.ip_address);
 
-   const size_t BUF_SIZE = 256;
+   // Connect to server
+   if (0 > connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)))
+   {
+      perror("Connect failed");
+      close(sock);
+      return 1;
+   }
+   printf("Connected to the server on port %u from IP %s\n", server_info.port_num, server_info.ip_address);
+
+   char input[1024];
+   char buffer[1024];
+   int n;
+
    while (1)
    {
-      // Prompt for input
-      char buffer[BUF_SIZE]; // Buffer to store the input, +1 for the null terminator
-      printf("Enter a message to send to the server: ");
-      if (fgets(buffer, sizeof(buffer) - 1, stdin)) 
+      printf("Enter your move (column number): ");
+      fgets(input, sizeof(input), stdin);
+      input[strcspn(input, "\n")] = 0; // Remove newline character
+
+      // Send the move to the server
+      send(sock, input, strlen(input), 0);
+
+      // Read server's response
+      n = recv(sock, buffer, sizeof(buffer) - 1, 0);
+      if (n <= 0)
       {
-         buffer[strcspn(buffer, "\n")] = 0; // Remove newline character if present
-         printf("You entered: %s\n", buffer);
-      } 
-      else 
-      {
-         printf("Error reading input.\n");
-         continue; // Go through while-loop again
+         break;
       }
-
-      // Send inputted message
-      int ret = send(server_socket, buffer, BUF_SIZE, 0);
-      printf("Send return code: %d\n", ret);
-
-      // Listen for response from server
-      len = recv(server_socket, buffer, MAXRCVLEN, 0);
-      buffer[len] = '\0'; // We must null terminate the received data ourselves
-      printf("Received %s (%d bytes).\n", buffer, len);
+      buffer[n] = '\0'; // Null-terminate the string
+      printf("Server says: %s\n", buffer);
    }
-   
 
-   close(server_socket);
-   return EXIT_SUCCESS;
+   close(sock);
+   return 0;
 }
 
 /*** end of file ***/

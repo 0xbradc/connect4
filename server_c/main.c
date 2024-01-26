@@ -1,64 +1,125 @@
 /** @file main.c
- * 
+ *
  * @brief Server in C
  *
- * @par   
+ * @par
  * COPYRIGHT NOTICE: MIT License
  * See: https://en.wikibooks.org/wiki/C_Programming/Networking_in_UNIX
- */ 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <netinet/in.h>
+#include <pthread.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-#define PORTNUM 2300
+#define PORT_NUM 4444
+#define BUFFER_SIZE 512
 
-/*!
- * @brief Set up main server
- *
- * @param[in] argc  Number of args
- * @param[in] argv  Array of args
- *
- * @return Success/Fail code
- */
-int main(int argc, char *argv[])
+struct SocketInformation
 {
-    struct sockaddr_in serv; // Socket info about our server
-    struct sockaddr_in dest; // Socket info about the machine connecting to us
-    int server_socket;       // Socket used to listen for incoming connections
-    socklen_t socksize = sizeof(struct sockaddr_in);
+   char *ip_address;
+   unsigned int port_num;
+};
 
-    memset(&serv, 0, sizeof(serv));           // Zero the struct before filling the fields
-    serv.sin_family = AF_INET;                // Set the type of connection to TCP/IP
-    serv.sin_addr.s_addr = htonl(INADDR_ANY); // Set our address to any interface
-    serv.sin_port = htons(PORTNUM);           // Set the server port number
+void *handle_client(void *arg)
+{
+    int client_sock = *(int *)arg;
+    free(arg);
 
-    // Create socket
-    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    char buffer[BUFFER_SIZE];
+    ssize_t size;
 
-    // Bind serv information to server_socket
-    bind(server_socket, (struct sockaddr *)&serv, sizeof(struct sockaddr));
+    printf("New connection\n");
 
-    // Start listening, allowing a queue of up to 1 pending connection
-    listen(server_socket, 1);
-    int client_socket = accept(server_socket, (struct sockaddr *)&dest, &socksize);
-
-    const char* welcome_msg = "Hello, client. It's good to hear from you.";
-    while (client_socket)
+    while ((size = read(client_sock, buffer, BUFFER_SIZE)) > 0)
     {
-        printf("Incoming connection from %s - sending welcome\n", inet_ntoa(dest.sin_addr));
-        send(client_socket, welcome_msg, strlen(welcome_msg), 0); // Send welcome message
-        close(client_socket);
-        client_socket = accept(server_socket, (struct sockaddr *)&dest, &socksize);
+        // Echo everything received
+        write(client_sock, buffer, size);
+        printf("Received: %.*s\n", (int)size, buffer);
     }
 
-    close(server_socket);
-    return EXIT_SUCCESS;
+    if (size == 0)
+    {
+        printf("Client disconnected\n");
+    }
+    else
+    {
+        perror("Read error");
+    }
+
+    close(client_sock);
+    return NULL;
+}
+
+int main()
+{
+    int server_sock, *client_sock;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    pthread_t thread;
+
+    // Create socket
+    server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (-1 == server_sock)
+    {
+        perror("Error creating socket");
+        return 1;
+    }
+
+    // Set server address
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT_NUM);
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    // Bind
+    if (0 > bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)))
+    {
+        perror("Bind failed");
+        close(server_sock);
+        return 1;
+    }
+
+    // Listen
+    if (0 > listen(server_sock, 5))
+    {
+        perror("Listen failed");
+        close(server_sock);
+        return 1;
+    }
+
+    printf("Server listening on port %d\n", PORT_NUM);
+
+    // Accept connections
+    while (1)
+    {
+        client_sock = malloc(sizeof(int));
+        if (0 > (*client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &client_addr_len)))
+        {
+            perror("Accept failed");
+            continue;
+        }
+
+        // Spawn a new thread for each connection
+        if (0 != pthread_create(&thread, NULL, handle_client, client_sock))
+        {
+            perror("Thread creation failed");
+            close(*client_sock);
+            free(client_sock);
+        }
+        else
+        {
+            pthread_detach(thread); // Detach the thread
+        }
+    }
+
+    // Never reached
+    close(server_sock);
+    return 0;
 }
 
 /*** end of file ***/
