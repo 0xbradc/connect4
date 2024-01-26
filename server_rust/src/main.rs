@@ -1,4 +1,3 @@
-use std::io::{Error, Read, Write};
 /** @file main.rs
  *
  * @brief Server in Rust
@@ -6,8 +5,10 @@ use std::io::{Error, Read, Write};
  * @par   
  * COPYRIGHT NOTICE: MIT License
  */
+
 use std::net::{TcpListener, TcpStream};
 use std::thread;
+use std::io::{Error, Read, Write};
 
 struct SocketInformation {
     ip_address: String,

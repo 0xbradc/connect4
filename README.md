@@ -13,5 +13,9 @@ Creating Connect4 gameplay out of multiple languages, both from the server and c
 
 ## Python: Run
 1. Open a terminal and `cd` into a directory with the desired Python file.
-2. In a terminal, run `python3 <file_name>`. 
+2. In a terminal, run `python3 <file_name>.py`. 
 2. Alternatively, if you're using VS Code, you can click the "play" arrow in the top right.
+
+## Go: Compile + Run
+1. Open a terminal and `cd` into a directory with the desired Go file.
+2. In that terminal, run `go run <file_name>.go`.
