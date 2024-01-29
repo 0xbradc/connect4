@@ -13,12 +13,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"../common_go/comms.go"
+	"../common_go/main.go"
 )
-
-type SocketInformation struct {
-	IPAddress string
-	PortNum   int
-}
 
 func handleClient(conn net.Conn) {
 	defer conn.Close()
@@ -46,19 +43,19 @@ func handleClient(conn net.Conn) {
 }
 
 func main() {
-	serverInfo := SocketInformation{
-		IPAddress: "127.0.0.1",
-		PortNum:   4444,
+	server_info := game.SocketInformation{
+		IPAddress: game.DEFAULT_IP_ADDRESS,
+		PortNum:   game.DEFAULT_PORT_NUM,
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", serverInfo.IPAddress, serverInfo.PortNum))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", server_info.IPAddress, server_info.PortNum))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error listening: %v\n", err)
 		os.Exit(1)
 	}
 	defer listener.Close()
 
-	fmt.Printf("Server listening on port %d from IP %s\n", serverInfo.PortNum, serverInfo.IPAddress)
+	fmt.Printf("Server listening on port %d from IP %s\n", server_info.PortNum, server_info.IPAddress)
 
 	for {
 		conn, err := listener.Accept()
