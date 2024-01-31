@@ -20,7 +20,6 @@ const (
 	TILE_OPEN int8 = 0
 	TILE_PLAYER int8 = 1
 	TILE_AI int8 = 2
-	CONNECT int8 = 4
 )
 
 func apply_move(game GameInformation, player int8, col int8) bool
@@ -35,17 +34,15 @@ func apply_move(game GameInformation, player int8, col int8) bool
 		return false // Player not recognized 
 	}
 
-	bool successful_move = false
 	for int i := (NUM_ROWS - 1); i >= 0; --i 
 	{
 		if game.board[i][col] == TILE_OPEN
 		{
 			game.board[i][col] = player
-			successful_move = true
-			break
+			return true
 		}
 	}
-	return successful_move
+	return false
 }
 
 func is_board_full(game GameInformation) bool 
@@ -65,16 +62,15 @@ func is_board_full(game GameInformation) bool
 
 func is_winner(game GameInformation, player int8) bool 
 {
-    var dfs func(r, c, dr, dc, count int) bool
-    dfs = func(r, c, dr, dc, count int) bool 
+    var dfs = func(r, c, dr, dc, count int) bool 
 	{
         if r < 0 || r >= NUM_ROWS || c < 0 || c >= NUM_COLS || board[r][c] != player 
 		{
             return false
         }
-        if count == CONNECT - 1 
+        if count == 3 
 		{
-            return true
+            return true // Indicates four in a row
         }
         return dfs(r + dr, c + dc, dr, dc, count + 1)
     }
